@@ -1,51 +1,60 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styles from 'styles/ContactList.module.css';
 import { useSelector, useDispatch } from 'react-redux';
-import { removeContact } from 'reduxFiles/contactsSlice';
-import { getContacts, getFilter } from 'reduxFiles/selectors';
+import { getFilteredContacts, getIsLoading } from 'reduxFiles/selectors';
 import { Notification } from 'components/Notification/Notification';
+import { deleteContacts, fetchContacts } from 'reduxFiles/operations';
+import { Notify } from 'notiflix';
 
 export const ContactList = () => {
-  const { items } = useSelector(getContacts);
-  const filter = useSelector(getFilter);
+  const isLoading = useSelector(getIsLoading);
+
+  const filteredContacts = useSelector(getFilteredContacts);
+
   const dispatch = useDispatch();
 
   const handleRemove = id => {
-    dispatch(removeContact(id));
+    dispatch(deleteContacts(id))
+    .unwrap()
+    .then(() => {
+      Notify.success('Contact deleted');
+    })
+    .catch((err) => {
+      Notify.failure(err.message);
+    });
   };
 
-  const getFilteredContacts = () => {
-    if (!filter) {
-      return items;
-    }
-
-    const temp = items.filter(contact =>
-      contact.name.toLowerCase().includes(filter.toLowerCase())
-    );
-    return temp;
-  };
-
-  const filteredContacts = getFilteredContacts();
+  useEffect(() => {
+    dispatch(fetchContacts())
+    .unwrap()
+      .catch((err) => {
+        Notify.failure(err.message);
+      });
+  }, [dispatch]);
 
   return (
     <>
-      {filteredContacts.length === 0 ? (
-        <Notification message="No contacts" />
-      ) : (
-        <ul className={styles.contactsList}>
-          {filteredContacts.map(contact => (
-            <li key={contact.id} className={styles.element}>
-              {contact.name + ' : ' + contact.phone}
-              <button
-                onClick={() => handleRemove(contact.id)}
-                className={styles.button}
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {
+        isLoading ? 
+        (<p>Loading...</p>) :
+        filteredContacts.length === 0 ? (
+          <Notification message="No contacts" />
+        ) : (
+          <ul className={styles.contactsList}>
+            {filteredContacts.map(contact => (
+              <li key={contact.id} className={styles.element}>
+                {contact.name + ' : ' + contact.phone}
+                <button
+                  onClick={() => handleRemove(contact.id)}
+                  className={styles.button}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
+      }
     </>
   );
 };
